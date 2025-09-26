@@ -2,7 +2,7 @@
 
 A simple guide to install, configure and use Jupyter notebook effectively
 
-## Step by Step Guide
+## Installation and Configuration Guide
 
 ### Installation
 
@@ -229,8 +229,30 @@ deactivate
 - --name → the internal kernel identifier
 - --display-name → the friendly name you’ll see in Jupyter Notebook’s Kernel menu
 
-3. Start Jupyter Notebook (in your base env)
+3. Start Jupyter Notebook (in your base env) - No need if service already running as systemd service
 
+From your main Jupyter environment (the one running the notebook server):
+```bash
+source ~/venv/bin/activate   # this is your main Jupyter server env
+jupyter-notebook
+```
+
+4. Select the environment per notebook
+
+When you create/open a notebook:
+- Go to Kernel → Change Kernel → "Python (Torch)" or "Python (Data)"
+- That notebook will now run inside the selected virtual environment.
+
+So you can keep Jupyter running in a light base env, and use heavier envs only for the notebooks that need them.
+
+5. Manage / cleanup
+```bash
+# To list installed kernels:
+jupyter kernelspec list
+
+# To remove one:
+jupyter kernelspec remove torch-env
+```
 
 ### Firewall Rules (if using direct port)
 If exposing port 8888 directly, restrict access to your laptop IP:
@@ -257,3 +279,65 @@ sudo ufw status
 pip install ipykernel and python -m ipykernel install --user --name myenv --display-name "Python (myenv)"
 ```
 - Keep the server OS and packages updated. Don’t expose raw Jupyter over the public internet WITHOUT TLS and a strong password.
+
+## Usage Guide
+
+### Set-up Work Directories
+
+1. Global work directory (for all notebooks)
+
+In your Jupyter config (~/.jupyter/jupyter_notebook_config.py), you can set:
+
+```bash
+c.NotebookApp.notebook_dir = '/home/jupyter/notebooks'
+```
+
+2. Per-notebook work directory (the one you actually want)
+
+Each notebook runs inside a kernel, and the kernel’s working directory is simply where the .ipynb file is located.
+
+- If you save your notebook in /home/jupyter/projects/torch, then when you run code like !pwd inside that notebook, it starts from /home/jupyter/projects/torch.
+- This is notebook-wise by default
+
+So the simplest way: organize your work into directories, and keep the notebooks in those directories.
+
+3. Force a kernel to always start in a specific directory
+
+If you want one virtual environment (or kernel) to always start in a fixed path, you can customize its kernel spec.
+
+For example, after you register your kernel (jupyter kernelspec list shows locations), edit the kernel.json of that kernel.
+
+Example (~/.local/share/jupyter/kernels/torch-env/kernel.json):
+
+```json
+{
+  "argv": [
+    "/home/jupyter/envs/torch-env/bin/python",
+    "-m",
+    "ipykernel_launcher",
+    "-f",
+    "{connection_file}"
+  ],
+  "display_name": "Python (Torch)",
+  "language": "python",
+  "env": {
+    "PYTHONPATH": "/home/jupyter/projects/torch",
+    "PWD": "/home/jupyter/projects/torch"
+  }
+}
+
+```
+This makes that kernel always start with working directory /home/jupyter/projects/torch.
+
+4. Programmatically change directory inside a notebook
+
+If you want a notebook itself to control where it runs, add at the top:
+
+```python
+import os
+os.chdir("/home/jupyter/projects/my-notebook-workdir")
+print("CWD:", os.getcwd())
+```
+
+This is handy if you move notebooks around but want them to run code in a fixed project folder.
+
